@@ -1,86 +1,58 @@
 import hashlib
 import bcrypt
 from argon2 import PasswordHasher
-import yaml
-from pathlib import Path
-
-
-ph = PasswordHasher()
-
-
-
-
-def load_config(path="config.yaml"):
-with open(path, "r") as f:
-return yaml.safe_load(f)
-
-
-
+import os
+import base64
 
 def hash_md5(password: str) -> str:
-return hashlib.md5(password.encode()).hexdigest()
+    return hashlib.md5(password.encode()).hexdigest()
 
-
-
+def hash_sha1(password: str) -> str:
+    return hashlib.sha1(password.encode()).hexdigest()
 
 def hash_sha256(password: str) -> str:
-return hashlib.sha256(password.encode()).hexdigest()
+    return hashlib.sha256(password.encode()).hexdigest()
 
+def hash_sha512(password: str) -> str:
+    return hashlib.sha512(password.encode()).hexdigest()
 
+def hash_pbkdf2(password: str, salt: bytes) -> str:
+    dk = hashlib.pbkdf2_hmac(
+        hash_name="sha256",
+        password=password.encode(),
+        salt=salt,
+        iterations=100_000
+    )
+    return base64.b64encode(dk).decode()
 
-
-def hash_bcrypt(password: str, salt: bytes) -> str:
-return bcrypt.hashpw(password.encode(), salt).decode()
-
-
-
+def hash_bcrypt(password: str) -> str:
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode(), salt).decode()
 
 def hash_argon2(password: str) -> str:
-return ph.hash(password)
-
-
-
+    ph = PasswordHasher()
+    return ph.hash(password)
 
 def main():
-config = load_config()
-input_file = Path(config["input_passwords"])
-output_dir = Path(config["output_dir"])
-output_dir.mkdir(parents=True, exist_ok=True)
+    print("\n=== Multi-Algorithm Password Hasher ===\n")
+    password = input("Enter your password: ")
 
+    print("\n--- Hash Outputs ---\n")
 
-passwords = input_file.read_text().splitlines()
+    print(f"MD5:      {hash_md5(password)}")
+    print(f"SHA1:     {hash_sha1(password)}")
+    print(f"SHA256:   {hash_sha256(password)}")
+    print(f"SHA512:   {hash_sha512(password)}")
 
+    salt = os.urandom(16)
+    print(f"PBKDF2:   {hash_pbkdf2(password, salt)}")
 
-if "md5" in config["algorithms"]:
-with open(output_dir / "md5.txt", "w") as f:
-for pw in passwords:
-f.write(hash_md5(pw) + "
-")
+    print(f"bcrypt:   {hash_bcrypt(password)}")
+    print(f"Argon2:   {hash_argon2(password)}")
 
-
-if "sha256" in config["algorithms"]:
-with open(output_dir / "sha256.txt", "w") as f:
-for pw in passwords:
-f.write(hash_sha256(pw) + "
-")
-
-
-if "bcrypt" in config["algorithms"]:
-with open(output_dir / "bcrypt.txt", "w") as f:
-for pw in passwords:
-salt = bcrypt.gensalt()
-f.write(hash_bcrypt(pw, salt) + "
-")
-
-
-if "argon2" in config["algorithms"]:
-with open(output_dir / "argon2.txt", "w") as f:
-for pw in passwords:
-f.write(hash_argon2(pw) + "
-")
-
-
-
+    print("\nNote:")
+    print("- MD5/SHA1 are cryptographically broken")
+    print("- bcrypt, PBKDF2, and Argon2 are designed for password storage\n")
 
 if __name__ == "__main__":
-main()
+    main()
